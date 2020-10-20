@@ -1,0 +1,78 @@
+install.packages("tidyverse")
+library(tidyverse)
+
+install.packages("tidymodels")
+library(tidymodels)
+
+install.packages("ranger")
+library(ranger)
+
+install.packages("car")
+library(car)
+
+install.packages("lmtest")
+library(lmtest)
+
+install.packages("rms")
+library(rms)
+
+
+#read the datsset
+salary_data <- read.csv("data/Salaries.csv")
+
+salary_clean_2 <- salary_data[,-c(1)] %>% mutate(rank = factor(rank), discipline = factor(discipline), sex = factor(sex))
+
+
+salary_clean_2
+
+# visualising the dataset
+ggplot(salary_data) + geom_point(aes(x= salary, y=yrs.since.phd))
+
+ggplot(salary_data) + geom_line(aes(x= sex, y=salary))
+
+ggplot(salary_data) + geom_line(aes(x= sex, y=yrs.service))
+
+ggplot(salary_data) + geom_line(aes(x= sex, y=yrs.since.phd))
+
+ggplot(salary_data) + geom_line(aes(x= rank, y= salary))
+
+ggplot(salary_data) + geom_histogram(aes(x= yrs.since.phd))
+ggplot(salary_data) + geom_histogram(aes(x= salary))
+
+model1<- lm(data=salary_data, salary ~ yrs.service + yrs.since.phd + sex)
+
+summary(model1)
+
+
+#####  View data type of training dataset
+
+#####  Check data with str function
+str(salary_clean_2)
+
+lmfit = lm(salary ~ ., data = salary_clean_2)
+
+summary(lmfit)
+
+# sex is insignificant
+
+lmfit = lm(salary ~ sex + rank + discipline + yrs.since.phd + yrs.service, data = salary_clean)
+
+summary(lmfit)
+
+par(mfrow=c(2,2))
+plot(lmfit)
+
+vif(lmfit)
+sqrt(vif(lmfit)) > 2
+
+bptest(lmfit)
+
+olsfit = ols(salary ~ rank + discipline + yrs.since.phd + yrs.service, data = Salaries, x= TRUE, y= TRUE)
+robcov(olsfit)
+
+salary_clean_2[seq(from=1, to=10, by=2),]
+
+newProfessors = salary_clean_2[seq(from=1, to=10, by=2),]
+
+#####  Predict using confidence interval
+predict(lmfit, newProfessors, interval="confidence", level=0.95)
