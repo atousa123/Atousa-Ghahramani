@@ -1,0 +1,78 @@
+install.packages("tidyverse")
+library(tidyverse)
+
+install.packages("tidymodels")
+library(tidymodels)
+
+install.packages("ranger")
+library(ranger)
+
+install.packages("skimr")
+library(skimr)
+
+salary_data <- read.csv("data/Salaries.csv")
+
+
+str(salary_clean)
+
+salary_clean <- salary_data[,-c(1)] %>% mutate(rank = factor(rank), discipline = factor(discipline), sex = factor(sex))
+
+#to visualise the dataset
+ggplot(salary_clean) + geom_point(aes(x= salary, y= yrs.since.phd))
+ggplot(salary_clean) + geom_histogram(aes(x= salary))
+
+set.seed(123456789)
+
+salary_split <- initial_split(salary_clean, prop = 3/4)
+
+salary_train <- training(salary_split)
+salary_train
+
+salary_test <- testing(salary_split)
+salary_test
+
+salary_cv <- vfold_cv(salary_train)
+salary_cv
+
+salary_recipe <- training(salary_split) %>% recipe(salary~.) %>%
+  step_normalize("yrs.since.phd","yrs.service") %>%
+  prep()
+
+
+salary_train_juice <- salary_recipe %>% prep(salary_train) %>%
+  juice()
+salary_train_juice
+
+#try the Random forest model
+rf_model <- rand_forest() %>% 
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression") 
+rf_model
+
+rf_workflow <- workflow() %>% add_recipe(salary_recipe) %>% 
+  add_model(rf_model)
+
+rf_grid <- expand.grid(mtry = c(3, 4, 5))
+rf_tune_results <- rf_workflow %>% 
+  tune_grid(resamples = salary_cv, #CV object
+            grid = rf_grid) # grid of values to try
+
+
+rf_fit <- rf_workflow %>%
+  # fit on the training set and evaluate on test set
+  last_fit(salary_split)
+
+test_performance <- rf_fit %>% collect_metrics()
+
+
+
+# generate predictions from the test set
+test_predictions <- rf_fit %>% collect_predictions()
+
+test_predictions
+
+final_model<- fit(rf_workflow, salary_clean)
+
+new_teacher <- tribble(~rank, ~discipline, ~yrs.since.phd, ~yrs.service, ~sex,
+                       "Prof", "A", 18, 12, "Female")
+predict(final_model, new_data = new_teacher)
